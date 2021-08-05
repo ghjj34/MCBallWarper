@@ -3,46 +3,56 @@ package io.github.ghjj34.Warper;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.math.Vector3;
 import com.sk89q.worldedit.util.Location;
+import com.sun.org.apache.xpath.internal.operations.Bool;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
-import org.bukkit.craftbukkit.libs.org.apache.maven.model.validation.DefaultModelValidator;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.EquipmentSlot;
+
+import java.util.HashMap;
+import java.util.Map;
 
 
 public class WarperListener implements Listener {
 
+    private Map<Player, Long> timers = new HashMap<>();
+    private Map<Player, Boolean> cooldowns = new HashMap<>();
     long trigger = 0;
+    long cooldownSet = 0l;
     boolean cooldown = false;
-    double cooldownSet;
     int cooldownTimer;
     private final WarperPlugin plugin = WarperPlugin.getInstance();
 
     @EventHandler
+    public void onPlayerJoinEvent(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        timers.put(player,cooldownSet);
+        cooldowns.put(player,cooldown);
+    }
+
+    @EventHandler
     public void onPlayerInteractEvent(PlayerInteractEvent event) {
-        System.out.println("PlayerInteractEvent Working");
         Player sender = event.getPlayer();
         com.sk89q.worldedit.entity.Player player = BukkitAdapter.adapt(event.getPlayer());
         if (event.getHand() == EquipmentSlot.OFF_HAND) {
-            System.out.println("Off Hand Triggered");
             event.setCancelled(true);
             return;
         } else if (event.getHand() == EquipmentSlot.HAND) {
-            System.out.println("GetHand Working");
             if (event.getMaterial() == Material.BLAZE_ROD) {
+                cooldownSet = timers.get(sender);
+                cooldown = cooldowns.get(sender);
                 cooldown = WarperCooldown.cooldownChecker(cooldown, cooldownSet);
                 if (System.currentTimeMillis() - trigger < 100) {
                     return;
                 } else {
-                    System.out.println("GetItem Working");
                     if (event.getAction() == Action.valueOf("RIGHT_CLICK_AIR")) {
-                        System.out.println("RightAirCLick Working");
                         if (cooldown) {
                             cooldownTimer = WarperCooldown.getCooldownTimer(cooldownSet);
                             sender.sendMessage("§6On cooldown! " + cooldownTimer + " §6seconds remain until Warp is recharged.");
@@ -57,16 +67,15 @@ public class WarperListener implements Listener {
                             player.setPosition(newloc);
                             player.findFreePosition(newpos);
                             org.bukkit.Location effectloc = sender.getLocation();
-                            sender.spawnParticle(Particle.EXPLOSION_LARGE, preveffectloc, 1);
-                            sender.playSound(effectloc, Sound.ENTITY_ENDERMAN_TELEPORT, 2f, 1f);
-                            sender.spawnParticle(Particle.EXPLOSION_LARGE, effectloc, 1);
-                            cooldown = true;
-                            cooldownSet = System.currentTimeMillis();
+                            preveffectloc.getWorld().spawnParticle(Particle.EXPLOSION_LARGE, preveffectloc, 1);
+                            preveffectloc.getWorld().playSound(effectloc, Sound.ENTITY_ENDERMAN_TELEPORT, 2f, 1f);
+                            preveffectloc.getWorld().spawnParticle(Particle.EXPLOSION_LARGE, effectloc, 1);
+                            cooldowns.replace(sender,true);
+                            timers.replace(sender, System.currentTimeMillis());
                             Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, new WarperCooldown.CooldownEnder(sender), 300L);
                             sender.sendMessage("§dAir Warped!");
                         }
                     } else if (event.getAction() == Action.valueOf(("RIGHT_CLICK_BLOCK"))) {
-                        System.out.println("RightBlockCLick Working");
                         if (cooldown) {
                             cooldownTimer = WarperCooldown.getCooldownTimer(cooldownSet);
                             sender.sendMessage("§6On cooldown! " + cooldownTimer + " §6seconds remain until Warp is recharged.");
@@ -87,14 +96,13 @@ public class WarperListener implements Listener {
                                     Location sendwallpos = wallpos.setPosition(sendwallloc);
                                     player.setPosition(sendwallloc);
                                     player.findFreePosition(sendwallpos);
-                                    System.out.println("Alt Wall Warped");
                                 }
                                 org.bukkit.Location effectloc = sender.getLocation();
-                                sender.spawnParticle(Particle.EXPLOSION_LARGE, preveffectloc, 1);
-                                sender.playSound(effectloc, Sound.ENTITY_SHULKER_SHOOT, 2f, 1f);
-                                sender.spawnParticle(Particle.EXPLOSION_LARGE, effectloc, 1);
-                                cooldown = true;
-                                cooldownSet = System.currentTimeMillis();
+                                preveffectloc.getWorld().spawnParticle(Particle.EXPLOSION_LARGE, preveffectloc, 3);
+                                preveffectloc.getWorld().playSound(effectloc, Sound.ENTITY_SHULKER_SHOOT, 2f, 1f);
+                                preveffectloc.getWorld().spawnParticle(Particle.EXPLOSION_LARGE, effectloc, 3);
+                                cooldowns.replace(sender,true);
+                                timers.replace(sender, System.currentTimeMillis());
                                 Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, new WarperCooldown.CooldownEnder(sender), 300L);
                                 sender.sendMessage("§dWall Warped!");
                             } else {
@@ -102,13 +110,11 @@ public class WarperListener implements Listener {
                             }
                         }
                     } else {
-                        System.out.println("Some Other Action");
                         event.setCancelled(true);
                     }
                 }
             }
         }
         trigger = System.currentTimeMillis();
-        System.out.println("Action Ended");
     }
 }
