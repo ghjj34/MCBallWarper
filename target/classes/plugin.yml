@@ -1,4 +1,0 @@
-name: MCBallWarper
-version: 1.0
-main: io.github.ghjj34.Warper.WarperPlugin
-Depend: [WorldEdit]
